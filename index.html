@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ভিডিও প্রোডাকশন ম্যানেজার</title>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    /* Existing styles... */
+
+    /* Fix for filter dropdown contrast */
+    #filter-status option {
+        background: #1e293b;
+        color: #e2e8f0;
+    }
+    
+    #filter-status:focus {
+        background: #1e293b;
+        color: #e2e8f0;
+    }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="text-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-white">ডেটা লোড হচ্ছে...</p>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
+            <h1 class="text-3xl font-bold text-white mb-2">ভিডিও প্রোডাকশন ম্যানেজার</h1>
+            <p class="text-purple-200">আপনার সকল প্রজেক্ট এক জায়গায় - Firebase সিঙ্ক্রোনাইজড</p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stats-cards">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 overflow-hidden">
+            <div class="flex border-b border-white/20">
+                <button id="projects-tab" class="flex-1 px-6 py-4 font-semibold transition bg-white/20 text-white">
+                    <i data-lucide="folder-open" class="w-5 h-5 inline mr-2"></i>
+                    প্রজেক্ট
+                </button>
+                <button id="tasks-tab" class="flex-1 px-6 py-4 font-semibold transition text-purple-200 hover:bg-white/5">
+                    <i data-lucide="check-circle" class="w-5 h-5 inline mr-2"></i>
+                    টাস্ক
+                </button>
+                <button id="clients-tab" class="flex-1 px-6 py-4 font-semibold transition text-purple-200 hover:bg-white/5">
+                    <i data-lucide="users" class="w-5 h-5 inline mr-2"></i>
+                    ক্লায়েন্ট
+                </button>
+                <button id="workflow-tab" class="flex-1 px-6 py-4 font-semibold transition text-purple-200 hover:bg-white/5">
+                    <i data-lucide="play-circle" class="w-5 h-5 inline mr-2"></i>
+                    ওয়ার্কফ্লো
+                </button>
+            </div>
+
+            <div class="p-6">
+                <!-- Action Bar -->
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="filter" class="w-5 h-5 text-purple-300"></i>
+                        <select id="filter-status" class="bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="all">সকল স্ট্যাটাস</option>
+                            <option value="planning">পরিকল্পনা</option>
+                            <option value="in-progress">চলমান</option>
+                            <option value="review">রিভিউ</option>
+                            <option value="completed">সম্পন্ন</option>
+                            <option value="pending">অপেক্ষমাণ</option>
+                        </select>
+                    </div>
+                    <button id="add-new-btn" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition flex items-center gap-2">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                        নতুন যোগ করুন
+                    </button>
+                </div>
+
+                <!-- Content Areas -->
+                <div id="projects-content" class="content-area">
+                    <!-- Projects will be populated by JavaScript -->
+                </div>
+
+                <div id="tasks-content" class="content-area hidden">
+                    <!-- Tasks will be populated by JavaScript -->
+                </div>
+
+                <div id="clients-content" class="content-area hidden">
+                    <!-- Clients will be populated by JavaScript -->
+                </div>
+                
+                <div id="workflow-content" class="content-area hidden">
+                    <!-- Workflow will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 rounded-2xl p-6 max-w-md w-full border border-purple-500/30 max-h-[90vh] overflow-y-auto">
+            <h2 id="modal-title" class="text-2xl font-bold text-white mb-4">নতুন যোগ করুন</h2>
+            <div class="space-y-4" id="modal-content">
+                <!-- Modal content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAo8m-s0JvTe7av_QV2lke3j6BdkYczHhg",
+            authDomain: "studio-system-8ec86.firebaseapp.com",
+            databaseURL: "https://studio-system-8ec86-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "studio-system-8ec86",
+            storageBucket: "studio-system-8ec86.firebasestorage.app",
+            messagingSenderId: "394098693464",
+            appId: "1:394098693464:web:212fb23b62cd265a7a412d"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // State management
+        let state = {
+            activeTab: 'projects',
+            projects: [],
+            clients: [],
+            tasks: [],
+            showModal: false,
+            modalType: '',
+            editingItem: null,
+            filterStatus: 'all',
+            formData: {},
+            dataLoaded: false
+        };
+
+        // DOM Elements
+        const elements = {
+            loadingOverlay: document.getElementById('loading-overlay'),
+            statsCards: document.getElementById('stats-cards'),
+            projectsTab: document.getElementById('projects-tab'),
+            tasksTab: document.getElementById('tasks-tab'),
+            clientsTab: document.getElementById('clients-tab'),
+            workflowTab: document.getElementById('workflow-tab'),
+            filterStatus: document.getElementById('filter-status'),
+            addNewBtn: document.getElementById('add-new-btn'),
+            projectsContent: document.getElementById('projects-content'),
+            tasksContent: document.getElementById('tasks-content'),
+            clientsContent: document.getElementById('clients-content'),
+            workflowContent: document.getElementById('workflow-content'),
+            modal: document.getElementById('modal'),
+            modalTitle: document.getElementById('modal-title'),
+            modalContent: document.getElementById('modal-content')
+        };
+
+        // Initialize the application
+        function init() {
+            setupEventListeners();
+            loadDataFromFirebase();
+        }
+
+        // Load data from Firebase
+        function loadDataFromFirebase() {
+            showLoading(true);
+            
+            // Load all data in parallel
+            const projectsPromise = database.ref('video-projects').once('value');
+            const clientsPromise = database.ref('video-clients').once('value');
+            const tasksPromise = database.ref('video-tasks').once('value');
+            
+            Promise.all([projectsPromise, clientsPromise, tasksPromise])
+                .then(([projectsSnapshot, clientsSnapshot, tasksSnapshot]) => {
+                    // Process projects
+                    const projectsData = projectsSnapshot.val();
+                    state.projects = projectsData ? Object.keys(projectsData).map(key => ({ 
+                        id: key, 
+                        ...projectsData[key] 
+                    })) : [];
+                    
+                    // Process clients
+                    const clientsData = clientsSnapshot.val();
+                    state.clients = clientsData ? Object.keys(clientsData).map(key => ({ 
+                        id: key, 
+                        ...clientsData[key] 
+                    })) : [];
+                    
+                    // Process tasks
+                    const tasksData = tasksSnapshot.val();
+                    state.tasks = tasksData ? Object.keys(tasksData).map(key => ({ 
+                        id: key, 
+                        ...tasksData[key] 
+                    })) : [];
+                    
+                    state.dataLoaded = true;
+                    render();
+                    showLoading(false);
+                    
+                    // Set up real-time listeners
+                    setupRealtimeListeners();
+                })
+                .catch(error => {
+                    console.error('Error loading data:', error);
+                    alert('ডেটা লোড করতে সমস্যা হয়েছে।');
+                    showLoading(false);
+                });
+        }
+
+        // Set up real-time listeners for data changes
+        function setupRealtimeListeners() {
+            database.ref('video-projects').on('value', (snapshot) => {
+                const data = snapshot.val();
+                state.projects = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                if (state.dataLoaded) render();
+            });
+            
+            database.ref('video-clients').on('value', (snapshot) => {
+                const data = snapshot.val();
+                state.clients = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                if (state.dataLoaded) render();
+            });
+            
+            database.ref('video-tasks').on('value', (snapshot) => {
+                const data = snapshot.val();
+                state.tasks = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                if (state.dataLoaded) render();
+            });
+        }
+
+        // Save data to Firebase
+        function saveDataToFirebase(type, data) {
+            showLoading(true);
+            
+            // Convert array to object with IDs as keys
+            const dataObj = {};
+            data.forEach(item => {
+                // Ensure we don't include the Firebase key as a property
+                const { id, ...itemData } = item;
+                dataObj[item.id] = itemData;
+            });
+            
+            return database.ref(`video-${type}`).set(dataObj)
+                .then(() => {
+                    console.log(`${type} saved successfully`);
+                    showLoading(false);
+                })
+                .catch(error => {
+                    console.error(`Error saving ${type}:`, error);
+                    alert(`${type} সংরক্ষণ করতে সমস্যা হয়েছে।`);
+                    showLoading(false);
+                    throw error;
+                });
+        }
+
+        // Show/hide loading overlay
+        function showLoading(show) {
+            elements.loadingOverlay.style.display = show ? 'flex' : 'none';
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Tab switching
+            elements.projectsTab.addEventListener('click', () => switchTab('projects'));
+            elements.tasksTab.addEventListener('click', () => switchTab('tasks'));
+            elements.clientsTab.addEventListener('click', () => switchTab('clients'));
+            elements.workflowTab.addEventListener('click', () => switchTab('workflow'));
+            
+            // Filter change
+            elements.filterStatus.addEventListener('change', (e) => {
+                state.filterStatus = e.target.value;
+                render();
+            });
+            
+            // Add new button
+            elements.addNewBtn.addEventListener('click', () => {
+                if (state.activeTab === 'workflow') {
+                    openWorkflowProjectSelection();
+                } else {
+                    const modalType = state.activeTab === 'projects' ? 'project' : 
+                                   state.activeTab === 'tasks' ? 'task' : 'client';
+                    openModal(modalType);
+                }
+            });
+
+            // Close modal when clicking outside
+            elements.modal.addEventListener('click', (e) => {
+                if (e.target === elements.modal) {
+                    closeModal();
+                }
+            });
+        }
+
+        // Switch between tabs
+        function switchTab(tab) {
+            state.activeTab = tab;
+            
+            // Update tab buttons
+            elements.projectsTab.className = getTabClass('projects');
+            elements.tasksTab.className = getTabClass('tasks');
+            elements.clientsTab.className = getTabClass('clients');
+            elements.workflowTab.className = getTabClass('workflow');
+            
+            // Update content visibility
+            elements.projectsContent.classList.toggle('hidden', tab !== 'projects');
+            elements.tasksContent.classList.toggle('hidden', tab !== 'tasks');
+            elements.clientsContent.classList.toggle('hidden', tab !== 'clients');
+            elements.workflowContent.classList.toggle('hidden', tab !== 'workflow');
+            
+            render();
+        }
+
+        // Get tab class based on active state
+        function getTabClass(tab) {
+            const baseClass = 'flex-1 px-6 py-4 font-semibold transition';
+            return state.activeTab === tab 
+                ? `${baseClass} bg-white/20 text-white` 
+                : `${baseClass} text-purple-200 hover:bg-white/5`;
+        }
+
+        // Open modal for adding/editing
+        function openModal(type, item = null) {
+            state.modalType = type;
+            state.editingItem = item;
+            state.formData = item ? { ...item } : {};
+            state.showModal = true;
+            
+            renderModal();
+            elements.modal.classList.remove('hidden');
+            elements.modal.classList.add('flex');
+        }
+
+        // Close modal
+        function closeModal() {
+            state.showModal = false;
+            state.editingItem = null;
+            state.formData = {};
+            elements.modal.classList.add('hidden');
+            elements.modal.classList.remove('flex');
+        }
+
+        // Handle form input changes
+        function handleInputChange(e) {
+            const { name, value } = e.target;
+            state.formData[name] = value;
+        }
+
+        // Handle form submission
+        function handleSubmit() {
+            // Validate required fields
+            if (!validateForm()) return;
+
+            if (state.modalType === 'project') {
+                handleProjectSubmit();
+            } else if (state.modalType === 'client') {
+                handleClientSubmit();
+            } else if (state.modalType === 'task' || state.modalType === 'workflow-task') {
+                handleTaskSubmit();
+            }
+        }
+
+        // Validate form data
+        function validateForm() {
+            if (state.modalType === 'project' && !state.formData.name) {
+                alert('প্রজেক্টের নাম প্রয়োজন।');
+                return false;
+            }
+            if (state.modalType === 'client' && !state.formData.name) {
+                alert('ক্লায়েন্টের নাম প্রয়োজন।');
+                return false;
+            }
+            if ((state.modalType === 'task' || state.modalType === 'workflow-task') && !state.formData.title) {
+                alert('টাস্কের নাম প্রয়োজন।');
+                return false;
+            }
+            return true;
+        }
+
+        // Handle project submission
+        function handleProjectSubmit() {
+            const newProject = {
+                id: state.editingItem?.id || generateId(),
+                name: state.formData.name,
+                client: state.formData.client || '',
+                deadline: state.formData.deadline || '',
+                status: state.formData.status || 'planning',
+                budget: state.formData.budget || '',
+                description: state.formData.description || '',
+                createdAt: state.editingItem?.createdAt || new Date().toISOString()
+            };
+
+            const updatedProjects = state.editingItem
+                ? state.projects.map(p => p.id === state.editingItem.id ? newProject : p)
+                : [...state.projects, newProject];
+            
+            saveDataToFirebase('projects', updatedProjects)
+                .then(() => {
+                    closeModal();
+                })
+                .catch(error => {
+                    console.error('Error saving project:', error);
+                });
+        }
+
+        // Handle client submission
+        function handleClientSubmit() {
+            const newClient = {
+                id: state.editingItem?.id || generateId(),
+                name: state.formData.name,
+                email: state.formData.email || '',
+                phone: state.formData.phone || '',
+                company: state.formData.company || '',
+                address: state.formData.address || ''
+            };
+
+            const updatedClients = state.editingItem
+                ? state.clients.map(c => c.id === state.editingItem.id ? newClient : c)
+                : [...state.clients, newClient];
+            
+            saveDataToFirebase('clients', updatedClients)
+                .then(() => {
+                    closeModal();
+                })
+                .catch(error => {
+                    console.error('Error saving client:', error);
+                });
+        }
+
+        // Handle task submission
+        function handleTaskSubmit() {
+            const newTask = {
+                id: state.editingItem?.id || generateId(),
+                title: state.formData.title,
+                project: state.formData.project || '',
+                priority: state.formData.priority || 'medium',
+                status: state.formData.status || 'pending',
+                dueDate: state.formData.dueDate || '',
+                notes: state.formData.notes || '',
+                workflowStep: state.formData.workflowStep || 'pre-production'
+            };
+
+            const updatedTasks = state.editingItem
+                ? state.tasks.map(t => t.id === state.editingItem.id ? newTask : t)
+                : [...state.tasks, newTask];
+            
+            saveDataToFirebase('tasks', updatedTasks)
+                .then(() => {
+                    closeModal();
+                })
+                .catch(error => {
+                    console.error('Error saving task:', error);
+                });
+        }
+
+        // Generate unique ID
+        function generateId() {
+            return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Delete an item
+        function deleteItem(type, id) {
+            if (!confirm('আপনি কি নিশ্চিত এটি মুছে ফেলতে চান?')) return;
+
+            if (type === 'project') {
+                const updated = state.projects.filter(p => p.id !== id);
+                saveDataToFirebase('projects', updated);
+            } else if (type === 'client') {
+                const updated = state.clients.filter(c => c.id !== id);
+                saveDataToFirebase('clients', updated);
+            } else if (type === 'task') {
+                const updated = state.tasks.filter(t => t.id !== id);
+                saveDataToFirebase('tasks', updated);
+            }
+        }
+
+        // Get status color class
+       // Get status color class
+function getStatusColor(status) {
+    const colors = {
+        'planning': 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
+        'in-progress': 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
+        'review': 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
+        'completed': 'bg-green-500/20 text-green-300 border border-green-500/30',
+        'cancelled': 'bg-red-500/20 text-red-300 border border-red-500/30',
+        'pending': 'bg-gray-500/20 text-gray-300 border border-gray-500/30',
+        'high': 'bg-red-500/20 text-red-300 border border-red-500/30',
+        'medium': 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
+        'low': 'bg-green-500/20 text-green-300 border border-green-500/30',
+        'pre-production': 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
+        'production': 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
+        'post-production': 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
+        'delivery': 'bg-green-500/20 text-green-300 border border-green-500/30'
+    };
+    return colors[status] || 'bg-gray-500/20 text-gray-300 border border-gray-500/30';
+}
+
+        // Get status text in Bengali
+        function getStatusText(status) {
+            const statusMap = {
+                'planning': 'পরিকল্পনা',
+                'in-progress': 'চলমান',
+                'review': 'রিভিউ',
+                'completed': 'সম্পন্ন',
+                'pending': 'অপেক্ষমাণ',
+                'high': 'জরুরি',
+                'medium': 'মাঝারি',
+                'low': 'কম',
+                'pre-production': 'প্রি-প্রোডাকশন',
+                'production': 'প্রোডাকশন',
+                'post-production': 'পোস্ট-প্রোডাকশন',
+                'delivery': 'ডেলিভারি'
+            };
+            return statusMap[status] || status;
+        }
+
+        // Render the application
+        function render() {
+            if (!state.dataLoaded) return;
+            
+            renderStats();
+            
+            if (state.activeTab === 'projects') {
+                renderProjects();
+            } else if (state.activeTab === 'tasks') {
+                renderTasks();
+            } else if (state.activeTab === 'clients') {
+                renderClients();
+            } else if (state.activeTab === 'workflow') {
+                renderWorkflow();
+            }
+        }
+
+        // Render stats cards
+        function renderStats() {
+            const completedProjects = state.projects.filter(p => p.status === 'completed').length;
+            const inProgressProjects = state.projects.filter(p => p.status === 'in-progress').length;
+            const pendingTasks = state.tasks.filter(t => t.status === 'pending').length;
+            
+            elements.statsCards.innerHTML = `
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+                    <i data-lucide="video" class="w-8 h-8 mb-2 opacity-80"></i>
+                    <div class="text-3xl font-bold">${state.projects.length}</div>
+                    <div class="text-blue-100">মোট প্রজেক্ট</div>
+                </div>
+                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
+                    <i data-lucide="check-circle" class="w-8 h-8 mb-2 opacity-80"></i>
+                    <div class="text-3xl font-bold">${completedProjects}</div>
+                    <div class="text-green-100">সম্পন্ন</div>
+                </div>
+                <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white">
+                    <i data-lucide="clock" class="w-8 h-8 mb-2 opacity-80"></i>
+                    <div class="text-3xl font-bold">${inProgressProjects}</div>
+                    <div class="text-yellow-100">চলমান</div>
+                </div>
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+                    <i data-lucide="users" class="w-8 h-8 mb-2 opacity-80"></i>
+                    <div class="text-3xl font-bold">${state.clients.length}</div>
+                    <div class="text-purple-100">ক্লায়েন্ট</div>
+                </div>
+            `;
+            
+            lucide.createIcons();
+        }
+
+        // Render projects
+        function renderProjects() {
+            const filteredProjects = state.filterStatus === 'all' 
+                ? state.projects 
+                : state.projects.filter(p => p.status === state.filterStatus);
+            
+            if (filteredProjects.length === 0) {
+                elements.projectsContent.innerHTML = `
+                    <div class="col-span-full text-center text-purple-200 py-12">
+                        ${state.filterStatus === 'all' ? 'কোনো প্রজেক্ট নেই। নতুন প্রজেক্ট যোগ করুন।' : 'এই স্ট্যাটাসে কোনো প্রজেক্ট নেই।'}
+                    </div>
+                `;
+                return;
+            }
+            
+            elements.projectsContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    ${filteredProjects.map(project => `
+                        <div class="bg-white/5 backdrop-blur rounded-xl p-5 border border-white/10 hover:border-purple-400/50 transition">
+                            <div class="flex justify-between items-start mb-3">
+                                <h3 class="text-lg font-bold text-white">${project.name}</h3>
+                                <div class="flex gap-2">
+                                    <button data-edit-project='${JSON.stringify(project)}' class="text-blue-400 hover:text-blue-300">
+                                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                    </button>
+                                    <button data-delete-project='${project.id}' class="text-red-400 hover:text-red-300">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="space-y-2 text-sm">
+                                ${project.client ? `<div class="flex items-center gap-2">
+                                    <i data-lucide="users" class="w-4 h-4 text-purple-300"></i>
+                                    <span class="text-purple-200">${project.client}</span>
+                                </div>` : ''}
+                                ${project.deadline ? `<div class="flex items-center gap-2">
+                                    <i data-lucide="calendar" class="w-4 h-4 text-purple-300"></i>
+                                    <span class="text-purple-200">${project.deadline}</span>
+                                </div>` : ''}
+                                <div class="flex items-center gap-2">
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(project.status)}">
+                                        ${getStatusText(project.status)}
+                                    </span>
+                                </div>
+                                ${project.budget ? `<div class="text-green-400 font-semibold">৳ ${project.budget}</div>` : ''}
+                                ${project.description ? `<p class="text-purple-200 text-xs mt-2">${project.description}</p>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Add event listeners for edit and delete buttons
+            document.querySelectorAll('[data-edit-project]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const project = JSON.parse(button.getAttribute('data-edit-project'));
+                    openModal('project', project);
+                });
+            });
+            
+            document.querySelectorAll('[data-delete-project]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.getAttribute('data-delete-project');
+                    deleteItem('project', id);
+                });
+            });
+            
+            lucide.createIcons();
+        }
+
+        // Render tasks
+        function renderTasks() {
+            const filteredTasks = state.filterStatus === 'all' 
+                ? state.tasks 
+                : state.tasks.filter(t => t.status === state.filterStatus);
+            
+            if (filteredTasks.length === 0) {
+                elements.tasksContent.innerHTML = `
+                    <div class="text-center text-purple-200 py-12">
+                        ${state.filterStatus === 'all' ? 'কোনো টাস্ক নেই। নতুন টাস্ক যোগ করুন।' : 'এই স্ট্যাটাসে কোনো টাস্ক নেই।'}
+                    </div>
+                `;
+                return;
+            }
+            
+            elements.tasksContent.innerHTML = `
+                <div class="space-y-3">
+                    ${filteredTasks.map(task => `
+                        <div class="bg-white/5 backdrop-blur rounded-xl p-4 border border-white/10 hover:border-purple-400/50 transition">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <h3 class="text-white font-semibold mb-2">${task.title}</h3>
+                                    <div class="flex flex-wrap gap-2 text-sm">
+                                        ${task.project ? `<span class="text-purple-200">প্রজেক্ট: ${task.project}</span>` : ''}
+                                        <span class="px-2 py-1 rounded text-xs ${getStatusColor(task.priority)}">
+                                            ${getStatusText(task.priority)}
+                                        </span>
+                                        <span class="px-2 py-1 rounded text-xs ${getStatusColor(task.status)}">
+                                            ${getStatusText(task.status)}
+                                        </span>
+                                        ${task.dueDate ? `<span class="text-purple-200">শেষ: ${task.dueDate}</span>` : ''}
+                                        ${task.workflowStep ? `<span class="px-2 py-1 rounded text-xs ${getStatusColor(task.workflowStep)}">
+                                            ${getStatusText(task.workflowStep)}
+                                        </span>` : ''}
+                                    </div>
+                                    ${task.notes ? `<p class="text-purple-200 text-sm mt-2">${task.notes}</p>` : ''}
+                                </div>
+                                <div class="flex gap-2 ml-4">
+                                    <button data-edit-task='${JSON.stringify(task)}' class="text-blue-400 hover:text-blue-300">
+                                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                    </button>
+                                    <button data-delete-task='${task.id}' class="text-red-400 hover:text-red-300">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Add event listeners for edit and delete buttons
+            document.querySelectorAll('[data-edit-task]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const task = JSON.parse(button.getAttribute('data-edit-task'));
+                    openModal('task', task);
+                });
+            });
+            
+            document.querySelectorAll('[data-delete-task]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.getAttribute('data-delete-task');
+                    deleteItem('task', id);
+                });
+            });
+            
+            lucide.createIcons();
+        }
+
+        // Render clients
+        function renderClients() {
+            if (state.clients.length === 0) {
+                elements.clientsContent.innerHTML = `
+                    <div class="col-span-full text-center text-purple-200 py-12">
+                        কোনো ক্লায়েন্ট নেই। নতুন ক্লায়েন্ট যোগ করুন।
+                    </div>
+                `;
+                return;
+            }
+            
+            elements.clientsContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    ${state.clients.map(client => `
+                        <div class="bg-white/5 backdrop-blur rounded-xl p-5 border border-white/10 hover:border-purple-400/50 transition">
+                            <div class="flex justify-between items-start mb-3">
+                                <h3 class="text-lg font-bold text-white">${client.name}</h3>
+                                <div class="flex gap-2">
+                                    <button data-edit-client='${JSON.stringify(client)}' class="text-blue-400 hover:text-blue-300">
+                                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                    </button>
+                                    <button data-delete-client='${client.id}' class="text-red-400 hover:text-red-300">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="space-y-1 text-sm text-purple-200">
+                                ${client.company ? `<div>কোম্পানি: ${client.company}</div>` : ''}
+                                ${client.email ? `<div>ইমেইল: ${client.email}</div>` : ''}
+                                ${client.phone ? `<div>ফোন: ${client.phone}</div>` : ''}
+                                ${client.address ? `<div>ঠিকানা: ${client.address}</div>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Add event listeners for edit and delete buttons
+            document.querySelectorAll('[data-edit-client]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const client = JSON.parse(button.getAttribute('data-edit-client'));
+                    openModal('client', client);
+                });
+            });
+            
+            document.querySelectorAll('[data-delete-client]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.getAttribute('data-delete-client');
+                    deleteItem('client', id);
+                });
+            });
+            
+            lucide.createIcons();
+        }
+
+        // Render workflow
+        function renderWorkflow() {
+            if (state.projects.length === 0) {
+                elements.workflowContent.innerHTML = `
+                    <div class="text-center text-purple-200 py-12">
+                        কোনো প্রজেক্ট নেই। প্রথমে একটি প্রজেক্ট তৈরি করুন।
+                    </div>
+                `;
+                return;
+            }
+            
+            const workflowSteps = ['pre-production', 'production', 'post-production', 'delivery'];
+            const stepTitles = {
+                'pre-production': 'প্রি-প্রোডাকশন',
+                'production': 'প্রোডাকশন',
+                'post-production': 'পোস্ট-প্রোডাকশন',
+                'delivery': 'ডেলিভারি'
+            };
+            
+            elements.workflowContent.innerHTML = `
+                <div class="mb-6">
+                    <select id="workflow-project-select" class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">সকল প্রজেক্ট</option>
+                        ${state.projects.map(project => `
+                            <option value="${project.name}">${project.name}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    ${workflowSteps.map(step => {
+                        const stepTasks = state.tasks.filter(task => task.workflowStep === step);
+                        return `
+                            <div class="bg-white/5 backdrop-blur rounded-xl p-4 border border-white/10">
+                                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(step)}">
+                                        ${stepTitles[step]}
+                                    </span>
+                                    <span class="text-sm text-purple-300">(${stepTasks.length})</span>
+                                </h3>
+                                <div class="space-y-3">
+                                    ${stepTasks.length > 0 ? stepTasks.map(task => `
+                                        <div class="bg-white/5 rounded-lg p-3 border border-white/10">
+                                            <div class="flex justify-between items-start mb-2">
+                                                <h4 class="text-white font-semibold text-sm">${task.title}</h4>
+                                                <span class="px-2 py-1 rounded text-xs ${getStatusColor(task.priority)}">
+                                                    ${getStatusText(task.priority)}
+                                                </span>
+                                            </div>
+                                            <p class="text-purple-200 text-xs">প্রজেক্ট: ${task.project}</p>
+                                            ${task.dueDate ? `<p class="text-purple-200 text-xs">শেষ: ${task.dueDate}</p>` : ''}
+                                            <div class="flex justify-between items-center mt-2">
+                                                <span class="px-2 py-1 rounded text-xs ${getStatusColor(task.status)}">
+                                                    ${getStatusText(task.status)}
+                                                </span>
+                                                <div class="flex gap-1">
+                                                    <button data-edit-task='${JSON.stringify(task)}' class="text-blue-400 hover:text-blue-300">
+                                                        <i data-lucide="edit-2" class="w-3 h-3"></i>
+                                                    </button>
+                                                    <button data-delete-task='${task.id}' class="text-red-400 hover:text-red-300">
+                                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('') : `
+                                        <p class="text-purple-200 text-sm text-center py-4">কোনো টাস্ক নেই</p>
+                                    `}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            
+            // Add event listeners for edit and delete buttons
+            document.querySelectorAll('[data-edit-task]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const task = JSON.parse(button.getAttribute('data-edit-task'));
+                    openModal('task', task);
+                });
+            });
+            
+            document.querySelectorAll('[data-delete-task]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.getAttribute('data-delete-task');
+                    deleteItem('task', id);
+                });
+            });
+            
+            // Add event listener for project filter in workflow
+            const projectSelect = document.getElementById('workflow-project-select');
+            if (projectSelect) {
+                projectSelect.addEventListener('change', (e) => {
+                    const selectedProjectName = e.target.value;
+                    if (selectedProjectName) {
+                        const filteredTasks = state.tasks.filter(t => t.project === selectedProjectName);
+                        renderFilteredWorkflow(selectedProjectName, filteredTasks);
+                    } else {
+                        renderWorkflow();
+                    }
+                });
+            }
+            
+            lucide.createIcons();
+        }
+
+        // Render filtered workflow by project
+        function renderFilteredWorkflow(projectName, filteredTasks) {
+            const workflowSteps = ['pre-production', 'production', 'post-production', 'delivery'];
+            const stepTitles = {
+                'pre-production': 'প্রি-প্রোডাকশন',
+                'production': 'প্রোডাকশন',
+                'post-production': 'পোস্ট-প্রোডাকশন',
+                'delivery': 'ডেলিভারি'
+            };
+            
+            elements.workflowContent.innerHTML = `
+                <div class="mb-6">
+                    <select id="workflow-project-select" class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">সকল প্রজেক্ট</option>
+                        ${state.projects.map(project => `
+                            <option value="${project.name}" ${project.name === projectName ? 'selected' : ''}>${project.name}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    ${workflowSteps.map(step => {
+                        const stepTasks = filteredTasks.filter(task => task.workflowStep === step);
+                        return `
+                            <div class="bg-white/5 backdrop-blur rounded-xl p-4 border border-white/10">
+                                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(step)}">
+                                        ${stepTitles[step]}
+                                    </span>
+                                    <span class="text-sm text-purple-300">(${stepTasks.length})</span>
+                                </h3>
+                                <div class="space-y-3">
+                                    ${stepTasks.length > 0 ? stepTasks.map(task => `
+                                        <div class="bg-white/5 rounded-lg p-3 border border-white/10">
+                                            <div class="flex justify-between items-start mb-2">
+                                                <h4 class="text-white font-semibold text-sm">${task.title}</h4>
+                                                <span class="px-2 py-1 rounded text-xs ${getStatusColor(task.priority)}">
+                                                    ${getStatusText(task.priority)}
+                                                </span>
+                                            </div>
+                                            <p class="text-purple-200 text-xs">প্রজেক্ট: ${task.project}</p>
+                                            ${task.dueDate ? `<p class="text-purple-200 text-xs">শেষ: ${task.dueDate}</p>` : ''}
+                                            <div class="flex justify-between items-center mt-2">
+                                                <span class="px-2 py-1 rounded text-xs ${getStatusColor(task.status)}">
+                                                    ${getStatusText(task.status)}
+                                                </span>
+                                                <div class="flex gap-1">
+                                                    <button data-edit-task='${JSON.stringify(task)}' class="text-blue-400 hover:text-blue-300">
+                                                        <i data-lucide="edit-2" class="w-3 h-3"></i>
+                                                    </button>
+                                                    <button data-delete-task='${task.id}' class="text-red-400 hover:text-red-300">
+                                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('') : `
+                                        <p class="text-purple-200 text-sm text-center py-4">কোনো টাস্ক নেই</p>
+                                    `}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            
+            // Add event listeners for edit and delete buttons
+            document.querySelectorAll('[data-edit-task]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const task = JSON.parse(button.getAttribute('data-edit-task'));
+                    openModal('task', task);
+                });
+            });
+            
+            document.querySelectorAll('[data-delete-task]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.getAttribute('data-delete-task');
+                    deleteItem('task', id);
+                });
+            });
+            
+            // Add event listener for project filter in workflow
+            const projectSelect = document.getElementById('workflow-project-select');
+            if (projectSelect) {
+                projectSelect.addEventListener('change', (e) => {
+                    const selectedProjectName = e.target.value;
+                    if (selectedProjectName) {
+                        const filteredTasks = state.tasks.filter(t => t.project === selectedProjectName);
+                        renderFilteredWorkflow(selectedProjectName, filteredTasks);
+                    } else {
+                        renderWorkflow();
+                    }
+                });
+            }
+            
+            lucide.createIcons();
+        }
+
+        // Open workflow project selection
+        function openWorkflowProjectSelection() {
+            if (state.projects.length === 0) {
+                alert('প্রথমে একটি প্রজেক্ট তৈরি করুন।');
+                return;
+            }
+            
+            state.modalType = 'workflow-task';
+            state.editingItem = null;
+            state.formData = {};
+            
+            elements.modalTitle.textContent = 'ওয়ার্কফ্লো টাস্ক যোগ করুন';
+            
+            elements.modalContent.innerHTML = `
+                <select
+                    name="project"
+                    class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                    <option value="">প্রজেক্ট নির্বাচন করুন</option>
+                    ${state.projects.map(project => `
+                        <option value="${project.name}">${project.name}</option>
+                    `).join('')}
+                </select>
+                <div class="flex gap-3 pt-2">
+                    <button
+                        id="workflow-next-btn"
+                        class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition"
+                    >
+                        পরবর্তী
+                    </button>
+                    <button
+                        onclick="closeModal()"
+                        class="flex-1 bg-white/10 text-white py-2 rounded-lg font-semibold hover:bg-white/20 transition"
+                    >
+                        বাতিল
+                    </button>
+                </div>
+            `;
+            
+            elements.modal.classList.remove('hidden');
+            elements.modal.classList.add('flex');
+            
+            // Add event listener to project select
+            const projectSelect = elements.modalContent.querySelector('select[name="project"]');
+            projectSelect.addEventListener('change', handleInputChange);
+            
+            // Add event listener to next button
+            const nextBtn = document.getElementById('workflow-next-btn');
+            nextBtn.addEventListener('click', openWorkflowTaskModal);
+        }
+
+        // Open workflow task modal after project selection
+        function openWorkflowTaskModal() {
+            if (!state.formData.project) {
+                alert('দয়া করে একটি প্রজেক্ট নির্বাচন করুন।');
+                return;
+            }
+            
+            elements.modalTitle.textContent = 'ওয়ার্কফ্লো টাস্ক যোগ করুন';
+            
+            elements.modalContent.innerHTML = `
+                <input
+                    name="title"
+                    value="${state.formData.title || ''}"
+                    placeholder="টাস্কের নাম *"
+                    class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                />
+                <select
+                    name="workflowStep"
+                    class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                    <option value="pre-production" ${state.formData.workflowStep === 'pre-production' ? 'selected' : ''}>প্রি-প্রোডাকশন</option>
+                    <option value="production" ${state.formData.workflowStep === 'production' ? 'selected' : ''}>প্রোডাকশন</option>
+                    <option value="post-production" ${state.formData.workflowStep === 'post-production' ? 'selected' : ''}>পোস্ট-প্রোডাকশন</option>
+                    <option value="delivery" ${state.formData.workflowStep === 'delivery' ? 'selected' : ''}>ডেলিভারি</option>
+                </select>
+                <select
+                    name="priority"
+                    class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                    <option value="high" ${state.formData.priority === 'high' ? 'selected' : ''}>জরুরি</option>
+                    <option value="medium" ${!state.formData.priority || state.formData.priority === 'medium' ? 'selected' : ''}>মাঝারি</option>
+                    <option value="low" ${state.formData.priority === 'low' ? 'selected' : ''}>কম</option>
+                </select>
+                <select
+                    name="status"
+                    class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                    <option value="pending" ${!state.formData.status || state.formData.status === 'pending' ? 'selected' : ''}>অপেক্ষমাণ</option>
+                    <option value="in-progress" ${state.formData.status === 'in-progress' ? 'selected' : ''}>চলমান</option>
+                    <option value="completed" ${state.formData.status === 'completed' ? 'selected' : ''}>সম্পন্ন</option>
+                </select>
+                <input
+                    name="dueDate"
+                    type="date"
+                    value="${state.formData.dueDate || ''}"
+                    class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <textarea
+                    name="notes"
+                    placeholder="নোট"
+                    rows="3"
+                    class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >${state.formData.notes || ''}</textarea>
+                <div class="flex gap-3 pt-2">
+                    <button
+                        onclick="handleSubmit()"
+                        class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition"
+                    >
+                        সংরক্ষণ করুন
+                    </button>
+                    <button
+                        onclick="closeModal()"
+                        class="flex-1 bg-white/10 text-white py-2 rounded-lg font-semibold hover:bg-white/20 transition"
+                    >
+                        বাতিল
+                    </button>
+                </div>
+            `;
+            
+            // Add event listeners to form inputs
+            const inputs = elements.modalContent.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('input', handleInputChange);
+                input.addEventListener('change', handleInputChange);
+            });
+        }
+
+        // Render modal
+        function renderModal() {
+            elements.modalTitle.textContent = state.editingItem ? 'এডিট করুন' : 'নতুন যোগ করুন';
+            
+            let modalContent = '';
+            
+            if (state.modalType === 'project') {
+                modalContent = `
+                    <input
+                        name="name"
+                        value="${state.formData.name || ''}"
+                        placeholder="প্রজেক্টের নাম *"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        required
+                    />
+                    <select
+                        name="client"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                        <option value="">ক্লায়েন্ট নির্বাচন করুন</option>
+                        ${state.clients.map(client => `
+                            <option value="${client.name}" ${state.formData.client === client.name ? 'selected' : ''}>${client.name}</option>
+                        `).join('')}
+                    </select>
+                    <input
+                        name="deadline"
+                        type="date"
+                        value="${state.formData.deadline || ''}"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <select
+                        name="status"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                        <option value="planning" ${(state.formData.status || 'planning') === 'planning' ? 'selected' : ''}>পরিকল্পনা</option>
+                        <option value="in-progress" ${(state.formData.status || 'planning') === 'in-progress' ? 'selected' : ''}>চলমান</option>
+                        <option value="review" ${(state.formData.status || 'planning') === 'review' ? 'selected' : ''}>রিভিউ</option>
+                        <option value="completed" ${(state.formData.status || 'planning') === 'completed' ? 'selected' : ''}>সম্পন্ন</option>
+                    </select>
+                    <input
+                        name="budget"
+                        type="number"
+                        value="${state.formData.budget || ''}"
+                        placeholder="বাজেট (টাকা)"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <textarea
+                        name="description"
+                        placeholder="বিস্তারিত"
+                        rows="3"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >${state.formData.description || ''}</textarea>
+                `;
+            } else if (state.modalType === 'client') {
+                modalContent = `
+                    <input
+                        name="name"
+                        value="${state.formData.name || ''}"
+                        placeholder="ক্লায়েন্টের নাম *"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        required
+                    />
+                    <input
+                        name="company"
+                        value="${state.formData.company || ''}"
+                        placeholder="কোম্পানি"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <input
+                        name="email"
+                        type="email"
+                        value="${state.formData.email || ''}"
+                        placeholder="ইমেইল"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <input
+                        name="phone"
+                        value="${state.formData.phone || ''}"
+                        placeholder="ফোন নম্বর"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <textarea
+                        name="address"
+                        placeholder="ঠিকানা"
+                        rows="2"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >${state.formData.address || ''}</textarea>
+                `;
+            } else if (state.modalType === 'task') {
+                modalContent = `
+                    <input
+                        name="title"
+                        value="${state.formData.title || ''}"
+                        placeholder="টাস্কের নাম *"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        required
+                    />
+                    <select
+                        name="project"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                        <option value="">প্রজেক্ট নির্বাচন করুন</option>
+                        ${state.projects.map(project => `
+                            <option value="${project.name}" ${state.formData.project === project.name ? 'selected' : ''}>${project.name}</option>
+                        `).join('')}
+                    </select>
+                    <select
+                        name="workflowStep"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                        <option value="pre-production" ${(state.formData.workflowStep || 'pre-production') === 'pre-production' ? 'selected' : ''}>প্রি-প্রোডাকশন</option>
+                        <option value="production" ${(state.formData.workflowStep || 'pre-production') === 'production' ? 'selected' : ''}>প্রোডাকশন</option>
+                        <option value="post-production" ${(state.formData.workflowStep || 'pre-production') === 'post-production' ? 'selected' : ''}>পোস্ট-প্রোডাকশন</option>
+                        <option value="delivery" ${(state.formData.workflowStep || 'pre-production') === 'delivery' ? 'selected' : ''}>ডেলিভারি</option>
+                    </select>
+                    <select
+                        name="priority"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                        <option value="high" ${(state.formData.priority || 'medium') === 'high' ? 'selected' : ''}>জরুরি</option>
+                        <option value="medium" ${(state.formData.priority || 'medium') === 'medium' ? 'selected' : ''}>মাঝারি</option>
+                        <option value="low" ${(state.formData.priority || 'medium') === 'low' ? 'selected' : ''}>কম</option>
+                    </select>
+                    <select
+                        name="status"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                        <option value="pending" ${(state.formData.status || 'pending') === 'pending' ? 'selected' : ''}>অপেক্ষমাণ</option>
+                        <option value="in-progress" ${(state.formData.status || 'pending') === 'in-progress' ? 'selected' : ''}>চলমান</option>
+                        <option value="completed" ${(state.formData.status || 'pending') === 'completed' ? 'selected' : ''}>সম্পন্ন</option>
+                    </select>
+                    <input
+                        name="dueDate"
+                        type="date"
+                        value="${state.formData.dueDate || ''}"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <textarea
+                        name="notes"
+                        placeholder="নোট"
+                        rows="3"
+                        class="w-full bg-white/10 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >${state.formData.notes || ''}</textarea>
+                `;
+            }
+            
+            modalContent += `
+                <div class="flex gap-3 pt-2">
+                    <button
+                        onclick="handleSubmit()"
+                        class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition"
+                    >
+                        সংরক্ষণ করুন
+                    </button>
+                    <button
+                        onclick="closeModal()"
+                        class="flex-1 bg-white/10 text-white py-2 rounded-lg font-semibold hover:bg-white/20 transition"
+                    >
+                        বাতিল
+                    </button>
+                </div>
+            `;
+            
+            elements.modalContent.innerHTML = modalContent;
+            
+            // Add event listeners to form inputs
+            const inputs = elements.modalContent.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('input', handleInputChange);
+                input.addEventListener('change', handleInputChange);
+            });
+        }
+
+        // Make functions available globally
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.handleSubmit = handleSubmit;
+        window.deleteItem = deleteItem;
+        window.openWorkflowProjectSelection = openWorkflowProjectSelection;
+        window.openWorkflowTaskModal = openWorkflowTaskModal;
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>
